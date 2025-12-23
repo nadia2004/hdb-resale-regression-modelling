@@ -1,5 +1,5 @@
 # HDB Resale Price Regression Model 
-This project develops and validates a robust linear regression model to predict HDB resale prices using 2021 government data. The analysis focuses on feature selection, transformation, model diagnostics, and validation, with the goal of identifying key price drivers while ensuring model adequacy.
+This project develops and validates a robust linear regression model to predict HDB resale prices using 2021 government data. The analysis focuses on feature selection, transformation, model diagnostics, and validation, with the goal of identifying key price drivers while ensuring model adequacy. Below is a summary of the key insights and steps, full report and R markdown can be found in the repository. 
 
 # Project Overview
 
