@@ -1,5 +1,5 @@
 ---
-title: "A0282275Y ST3131 Assignment"
+title: "HDB Resale Regression"
 output:
   html_document: default
   pdf_document: default
@@ -401,6 +401,7 @@ library(car)
 vif(M0)
 
 ```
+
 
 
 
