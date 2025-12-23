@@ -24,7 +24,7 @@ Overall, flat model, type, location, and floor are the primary determinants of r
 ## Distribution of Resale Prices
 Log transformation was applied to address right-skewness and extreme values, resulting in a more symmetric distribution and improved model suitability.
 
-![Resale price distribution before and after log transformation](images/resale_price_distribution.png)
+![Resale price distribution before and after log transformation](images/resale_price_distribution_hist.png)
 
 
 ## Numeric Predictors Scatter Analysis
@@ -39,7 +39,7 @@ ANOVA (η²) revealed:
 - Month of sale has negligible explanatory power and was excluded
 - Ordinal encoding was applied where logical trends were observed (flat type, storey range, town region) to ensure a more interpretable model.
 
-images/ordinal_trends.png
+images/ordinal_trend.png
 
 ## Model Diagnostics & Validation
 
