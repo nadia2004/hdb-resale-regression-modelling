@@ -39,7 +39,9 @@ ANOVA (η²) revealed:
 - Month of sale has negligible explanatory power and was excluded
 - Ordinal encoding was applied where logical trends were observed (flat type, storey range, town region) to ensure a more interpretable model.
 
-images/ordinal_trend.png
+![Resale price distribution before and after log transformation](images/ordinal_trend.png)
+
+
 
 ## Model Diagnostics & Validation
 
