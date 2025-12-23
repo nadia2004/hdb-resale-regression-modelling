@@ -1,0 +1,408 @@
+---
+title: "A0282275Y ST3131 Assignment"
+output:
+  html_document: default
+  pdf_document: default
+date: "2025-11-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+library(ggcorrplot)
+library(stringr)
+library(ggplot2)
+
+
+```
+
+
+# Part 1: EDA 
+## Investigate response variable
+### 1. Distribution of response variable
+```{r}
+
+#load data and add scaled response columns 
+
+data <- read.csv("hdb-resale-Jan-Jun2021.csv") %>% select(-block, -street_name, -lease_commence_date)%>% mutate(resale_scaled = resale_price/1000, resale_log = log(resale_scaled) ) %>% mutate(years = as.numeric(str_sub(remaining_lease, 1,2)), months = as.numeric(str_sub(remaining_lease,10,11)), months = replace_na(months, 0), remaining_lease_numeric =  years + months/12) 
+
+
+# skewed distribution of resale prices deviation from normality assumption
+resale_data <- data %>% select(resale_scaled, resale_log) %>% pivot_longer(cols = c(resale_scaled, resale_log),names_to = "type", values_to = "values")
+
+```
+
+Log transfomation can significantly improve the symmetry in distribution of response variable. See graphical comparison below. 
+
+```{r}
+
+#observe signs of right skewed distribution, deviation from normality assumption 
+hist(data$resale_scaled, data = data)
+qqnorm(data$resale_scaled)
+qqline(data$resale_scaled)
+
+#log transformation, observe outcome 
+##histogram comparison
+ggplot(resale_data, aes(x = values)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~type, ncol = 1, scales = "free") +
+  theme_minimal() +
+  labs(title = "Histogram Comparison", X = "values", Y = "count")
+
+
+
+##ggplot comparison
+ggplot(resale_data, aes(sample = values)) + 
+  geom_qq() + 
+  geom_qq_line(color = "red")  +
+  facet_wrap(~type, scales = "free") +
+  theme_minimal() + 
+  labs(title = "QQ-plot comparison", X = "Theoretical quantiles", y = "Sample Quantiles")
+
+
+
+```
+
+### 2. Response Variable Relationship w/ Numeric Regressors
+
+```{r}
+#Overview with Correlation Matrix 
+numeric_data <- data %>%  select(floor_area_sqm, remaining_lease_numeric, resale_log) %>% rename(remaining_lease = remaining_lease_numeric)
+
+corr_matrix <- cor(numeric_data)
+
+n_corrplot <- ggcorrplot(corr_matrix, lab = TRUE, type = "lower", ggtheme = theme_classic())
+
+n_corrplot
+
+
+
+
+
+#scatter plot for visualisation and checking variance and linearity 
+
+data_long <- data %>% select(resale_log, remaining_lease_numeric, floor_area_sqm) %>% 
+  pivot_longer(cols = c(floor_area_sqm, remaining_lease_numeric),
+               names_to = "num_var",
+               values_to = "values")
+
+scat_plot <- ggplot(data_long, aes(x = values, y = resale_log)) + geom_point(alpha = 0.3) + geom_smooth(method = "lm", se = FALSE, color = "blue") + facet_wrap(~ num_var, scales = "free_x") + labs(x = "Value", y = "Resale Price", title = "Resale Price vs Predictors") + theme_classic() + theme(panel.grid.major = element_line(), panel.grid.minor = element_line())
+
+
+ggsave(
+  filename = "n_corrplot.png",   # file name
+  plot = n_corrplot,             # the ggplot object
+  width = 10,                   # width in inches
+  height = 6,                   # height in inches
+  dpi = 300                     # resolution
+)
+
+
+```
+
+### 3. Response Variable Relationship w/ Categorical Variables
+
+```{r}
+
+#One-way ANOVA: Check significance of Categories for Selection 
+
+anova_flat <- aov(resale_log~ flat_type, data = data)
+
+anova_town <- aov(resale_log ~ town, data = data)
+
+anova_region <- aov(resale_log ~ town_region, data = data)
+
+anova_month <- aov(resale_log ~ month, data = data)
+
+anova_storey <- aov(resale_log ~ storey_range, data = data)
+
+anova_model <- aov(resale_log ~ flat_model, data = data)
+
+summary(anova_flat)
+summary(anova_town)
+summary(anova_region)
+summary(anova_month)
+summary(anova_model)
+
+
+```
+
+
+#### Ordinal encoding for Storey_range, Flat Type and Town Region 
+
+Flat Type Section 
+```{r}
+
+#For Flat Type
+
+data <- data %>%
+  mutate(flat_type = factor(flat_type,
+                            levels = c("1 ROOM", "2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE", "MULTI-GENERATION"),
+                            ordered = TRUE)) %>%
+  # Numeric encoding for ordinal modeling
+  mutate(flat_type_ord = as.numeric(flat_type))
+
+
+
+```
+
+
+Storey Range Section 
+```{r}
+#Checking and correcting for right skewed storey range distribution 
+
+storey_counts <- data %>%
+  count(storey_range) %>%
+  arrange(n)
+
+storey_counts
+
+data <- data %>%
+  mutate(storey_bin = case_when(
+    storey_range %in% c("01 TO 03") ~ "01 TO 03",
+    storey_range %in% c("04 TO 06") ~ "04 TO 06",
+    storey_range %in% c("07 TO 09") ~ "07 TO 09",
+    storey_range %in% c("10 TO 12") ~ "10 TO 12",
+    storey_range %in% c("13 TO 15") ~ "13 TO 15",
+    storey_range %in% c("16 TO 18") ~ "16 TO 18",
+    storey_range %in% c("19 TO 21") ~ "19 TO 21",
+    storey_range %in% c("22 TO 24") ~ "22 TO 24",
+    storey_range %in% c("25 TO 27", "28 TO 30") ~ "25 TO 30",
+    storey_range %in% c("31 TO 33","34 TO 36","37 TO 39",
+                        "40 TO 42","43 TO 45","46 TO 48","49 TO 51") ~ "31 TO 51"
+  ))
+
+# Convert storey_range to ordinal numeric 
+data <- data %>%
+  mutate(storey_ord = as.numeric(factor(storey_bin,
+                                        levels = c("01 TO 03","04 TO 06","07 TO 09", "10 TO 12","13 TO 15","16 TO 18", "19 TO 21","22 TO 24","25 TO 30","31 TO 51"))))
+
+```
+
+
+
+
+Town Region Section 
+```{r}
+
+#Ordinal Numeric Encoding for town region based on distance from central 
+
+data <- data %>%
+  mutate(
+    town_region = factor(town_region, levels = c("OCR", "RCR", "CCR"), ordered = TRUE),
+    town_region_ord = as.numeric(town_region)  # 1 = OCR, 2 = RCR, 3 = CCR
+  )
+
+```
+
+
+facet plot to visualise the natural order of ordinal categories 
+```{r}
+#flat_type
+flat_type_trend <- data %>%
+  group_by(flat_type) %>%
+  summarise(
+    mean_price = mean(resale_log, na.rm = TRUE),
+    median_price = median(resale_log, na.rm = TRUE),
+    n = n()
+  )
+
+flat_df <- flat_type_trend %>%
+  select(flat_type, median_price) %>%
+  rename(x_value = flat_type, y_value = median_price) %>%
+  mutate(Variable = "Flat Type")
+
+
+# storey 
+storey_trend <- data %>%
+  group_by(storey_ord, storey_bin) %>%
+  summarise(median_price = median(resale_log), .groups = "drop")
+
+storey_df <- storey_trend %>%
+  select(storey_bin, median_price) %>%
+  rename(x_value = storey_bin, y_value = median_price) %>%
+  mutate(Variable = "Storey Range")
+
+#town region 
+region_trend <- data %>%
+  group_by(town_region) %>%
+  summarise(median_price = median(resale_log), .groups = "drop")
+
+region_df <- region_trend %>%
+  select(town_region, median_price) %>%
+  rename(x_value = town_region, y_value = median_price) %>%
+  mutate(Variable = "Town Region (Dist from Central)") %>%
+  mutate(
+    x_value = case_when(
+      x_value == "OCR" ~ "1: OCR",
+      x_value == "RCR" ~ "2: RCR",
+      x_value == "CCR" ~ "3: CCR"
+    ),
+  
+    x_value = factor(x_value, levels = c("1: OCR", "2: RCR", "3: CCR"))
+  )
+
+combined_df <- bind_rows(flat_df, storey_df, region_df)
+
+#facet plot
+ordinal_trend <- ggplot(combined_df, aes(x = x_value, y = y_value, group = 1)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ Variable, scales = "free") +  # separate x-axis per factor
+  labs(x = NULL, y = "Median Resale Price (log)", title = "Resale Price Trends for Flat Type & Storey") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+    axis.text.y = element_text(size = 8),
+    axis.title = element_text(size = 10),
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5)
+  )
+
+ordinal_trend
+
+
+
+```
+
+
+
+
+
+# Part 2: Building Model 
+
+```{r}
+
+#build M0 on 6 regressors: flat type, flat model, town region, floor area sqm, remaining lease, storey range
+
+model_data <- data %>% mutate(
+  flat_model = factor(flat_model)
+) 
+
+M0 <- lm(resale_log ~ flat_model + town_region_ord + flat_type_ord + storey_ord + remaining_lease_numeric + floor_area_sqm, data = model_data)
+
+
+#summary statistics 
+summary(M0)
+anova(M0)
+
+
+```
+
+## model adequacy checks
+
+### QQ Plot for SR 
+```{r}
+
+#prepare new df for diagnostic checks
+model_diag <- model_data %>%
+  mutate(
+    fitted = fitted(M0),
+    SR = rstandard(M0),
+    outlier = abs(SR) > 3
+  )
+
+#QQ plot for SRs 
+SR_QQ <- ggplot(model_diag, aes(sample = SR)) +
+  stat_qq() +
+  stat_qq_line(color = "red") +
+  labs(title = "Q-Q Plot of Standardized Residuals",
+       x = "Theoretical Quantiles",
+       y = "Standardized Residuals") +
+  theme_classic()
+
+SR_QQ
+
+```
+
+### Residual Plots
+```{r}
+
+
+# Prepare data: SR, fitted, numeric predictors
+model_diag_long <- model_diag %>%
+  select(fitted, floor_area_sqm, remaining_lease_numeric, SR, outlier) %>%
+  pivot_longer(
+    cols = c(fitted, floor_area_sqm, remaining_lease_numeric),
+    names_to = "Predictor",
+    values_to = "X"
+  )
+
+# Plot standardized residuals vs all predictors (including fitted)
+residual_plots <- ggplot(model_diag_long, aes(x = X, y = SR)) +
+  geom_point(aes(color = outlier)) +
+  geom_hline(yintercept = 0, color = "red") +
+  geom_hline(yintercept = c(-3,3), color = "blue", linetype = "dashed") +
+  facet_wrap(~ Predictor, scales = "free_x") +
+  scale_color_manual(values = c("FALSE" = "black", "TRUE" = "orange")) +
+  labs(
+    title = "Standardized Residuals vs Numeric Predictors & Fitted Values",
+    x = NULL,
+    y = "Standardized Residuals"
+  ) +
+  theme_classic() +
+  theme(legend.position = "none")
+
+residual_plots
+```
+
+
+
+### addressing outliers 
+```{r}
+
+#df removing outliers
+
+clean_data <- model_diag %>%
+  filter(abs(SR) <= 3)
+
+# Refit model without outliers
+M0_clean <- lm(
+  resale_log ~ flat_model + town_region_ord + flat_type_ord +
+              storey_ord + remaining_lease_numeric + floor_area_sqm,
+  data = clean_data
+)
+
+# Updated model summary
+summary(M0_clean)
+anova(M0_clean)
+
+```
+
+
+
+
+### address leverage values 
+```{r}
+
+# Leverage (hat values)
+hat_values <- hatvalues(M0)
+p <- length(coefficients(M0))  
+n <- nrow(model_data)
+
+# Leverage threshold
+threshold <- 2 * p / n
+
+
+# num of influential pts: 327 
+length(which(hat_values > threshold))
+#but zero with Cook's distance > 1; can retain values 
+which(cooks.distance(M0) > 1)
+
+
+
+```
+### address multicolinearity
+```{r}
+library(car)
+vif(M0)
+
+```
+
+
+
+
+
