@@ -39,7 +39,7 @@ ANOVA (η²) revealed:
 - Month of sale has negligible explanatory power and was excluded
 - Ordinal encoding was applied where logical trends were observed (flat type, storey range, town region) to ensure a more interpretable model.
 
-![Resale price distribution before and after log transformation](images/ordinal_trend.png)
+![Ordinal Trends](images/ordinal_trend.png)
 
 
 
@@ -47,7 +47,9 @@ ANOVA (η²) revealed:
 
 An initial Multiple Linear Regression model was fitted to the 6 identified predictors. The model was evaluated using:
 - Residual QQ plots (checking normality)
+![Residual QQ plots](images/sr_qq.png)
 - Residuals vs fitted values (constant variance)
+![Residual QQ plots](images/std_residual_plot.png)
 - Outlier analysis (standardised residuals) + Leverage and Cook’s distance
 - GVIF for multicollinearity
 
